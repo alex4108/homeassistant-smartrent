@@ -2,11 +2,10 @@
 import logging
 from typing import Any, Union
 
-from homeassistant.components.lock import LockEntity, LockEntityFeature
-from homeassistant.helpers.device_registry import DeviceEntryType
+from homeassistant.components.lock import LockEntity
 from smartrent import DoorLock
 
-from .const import CONFIGURATION_URL, PROPER_NAME
+from .const import CONFIGURATION_URL, DOMAIN, PROPER_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,15 +22,9 @@ class SmartrentLock(LockEntity):
     def __init__(self, lock: DoorLock) -> None:
         super().__init__()
         self.device = lock
-        self._attr_supported_features = LockEntityFeature.OPEN
 
         self.device.start_updater()
         self.device.set_update_callback(self.async_schedule_update_ha_state)
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return LockEntityFeature.OPEN
 
     @property
     def should_poll(self):
@@ -41,7 +34,7 @@ class SmartrentLock(LockEntity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self.device._device_id
+        return str(self.device._device_id)
 
     @property
     def name(self):
@@ -69,10 +62,9 @@ class SmartrentLock(LockEntity):
     @property
     def device_info(self):
         return dict(
-            identifiers={("id", self.device._device_id)},
+            identifiers={(DOMAIN, str(self.device._device_id))},
             name=str(self.name),
             manufacturer=PROPER_NAME,
             model=str(self.device.__class__.__name__),
-            entry_type=DeviceEntryType.SERVICE,
             configuration_url=CONFIGURATION_URL,
         )

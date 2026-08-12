@@ -4,13 +4,14 @@ Custom integration to integrate integration_blueprint with Home Assistant.
 For more details about this integration, please refer to
 https://github.com/custom-components/integration_blueprint
 """
-import asyncio
 import logging
 
 from aiohttp.client_exceptions import ClientConnectorError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from smartrent import async_login
 from smartrent.api import API
@@ -26,6 +27,44 @@ from .const import (
 )
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate legacy numeric IDs and generic device identifiers."""
+    if entry.version != 1:
+        return True
+
+    entity_registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if entity_entry.unique_id is not None and not isinstance(
+            entity_entry.unique_id, str
+        ):
+            entity_registry.async_update_entity(
+                entity_entry.entity_id,
+                new_unique_id=str(entity_entry.unique_id),
+            )
+
+    device_registry = dr.async_get(hass)
+    for device_entry in dr.async_entries_for_config_entry(
+        device_registry, entry.entry_id
+    ):
+        identifiers = {
+            (
+                DOMAIN if identifier_domain == "id" else identifier_domain,
+                str(identifier),
+            )
+            for identifier_domain, identifier in device_entry.identifiers
+        }
+        device_registry.async_update_device(
+            device_entry.id,
+            new_identifiers=identifiers,
+            entry_type=None,
+        )
+
+    hass.config_entries.async_update_entry(entry, version=2)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -52,20 +91,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    entry.add_update_listener(async_reload_entry)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle removal of an entry."""
-    unloaded = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, platform)
-                for platform in PLATFORMS
-            ]
-        )
-    )
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     api: API = hass.data[DOMAIN][entry.entry_id]
     for device in api.get_device_list():
         device.stop_updater()
@@ -74,9 +105,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unloaded
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)

@@ -10,7 +10,7 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/ZacheryThomas/homeassistant-smartrent/issues",
   "requirements": [
-    "smartrent-py==0.5.2"
+    "smartrent-py@git+https://github.com/alex4108/smartrent-py.git@d5aebfeac337e5b9f3a811da245310289ba97aa7"
   ],
-  "version": "0.5.5"
+  "version": "0.6.0"
 }

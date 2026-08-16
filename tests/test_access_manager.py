@@ -455,6 +455,34 @@ async def test_create_uses_isolated_adapter_and_verified_readback() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_prefers_returned_pin_over_timestamp_formatting() -> None:
+    before = unit_access()
+    created = unit_access(
+        guest(
+            activation_type="temporary",
+            start_at="2026-08-16T08:00:00.000Z",
+            end_at="2026-08-16T10:00:00.000Z",
+        )
+    )
+    api = FakeAPI(
+        [before, created],
+        create_response={"code": "004321"},
+    )
+
+    response = await manager(api).async_create_guest_code(
+        activation_type="temporary",
+        first_name="Ada",
+        last_name="Lovelace",
+        email="ada@example.com",
+        start_at="2026-08-16T08:00:00+00:00",
+        end_at="2026-08-16T10:00:00+00:00",
+    )
+
+    assert response["verified"] is True
+    assert response["guest_code"]["pin"] == "004321"
+
+
+@pytest.mark.asyncio
 async def test_create_can_verify_server_response_with_pin_only() -> None:
     api = FakeAPI(
         [unit_access(), unit_access(guest())],

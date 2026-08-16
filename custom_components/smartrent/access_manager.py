@@ -925,7 +925,7 @@ class SmartRentAccessManager:
             candidates = [
                 code
                 for code in guest_codes_for_lock(access_data, self._lock_device_id)
-                if code["code_id"] not in before_ids and _matches_values(code, values)
+                if code["code_id"] not in before_ids
             ]
             if response_ids:
                 candidates = [
@@ -940,6 +940,10 @@ class SmartRentAccessManager:
             if response_pins:
                 candidates = [
                     code for code in candidates if code.get("pin") in response_pins
+                ]
+            if not response_ids and not response_pins:
+                candidates = [
+                    code for code in candidates if _matches_values(code, values)
                 ]
             return candidates[0] if len(candidates) == 1 else None
 

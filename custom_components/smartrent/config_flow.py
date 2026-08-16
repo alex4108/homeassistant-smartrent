@@ -7,6 +7,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.helpers import aiohttp_client
+from homeassistant.util.ssl import get_default_context
 from smartrent import async_login
 from smartrent.utils import InvalidAuthError
 
@@ -43,7 +44,13 @@ class SmartRentFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: i
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
             tfa_token = user_input.get(CONF_TOKEN)
-            await async_login(username, password, session, tfa_token=tfa_token)
+            await async_login(
+                username,
+                password,
+                session,
+                tfa_token=tfa_token,
+                ssl_context=get_default_context(),
+            )
         except InvalidAuthError as exc:
             _LOGGER.error(f"Invalid auth: {exc}")
             return {"base": "invalid_auth"}

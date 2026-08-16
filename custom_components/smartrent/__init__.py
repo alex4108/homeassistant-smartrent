@@ -19,6 +19,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util.ssl import get_default_context
 from smartrent import async_login
 from smartrent.api import API
 from smartrent.utils import InvalidAuthError
@@ -178,7 +179,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     session = async_get_clientsession(hass)
     try:
-        api = await async_login(username, password, session, tfa_token=tfa_token)
+        api = await async_login(
+            username,
+            password,
+            session,
+            tfa_token=tfa_token,
+            ssl_context=get_default_context(),
+        )
     except InvalidAuthError as exception:
         raise ConfigEntryAuthFailed("Credentials expired!") from exception
     except ClientConnectorError as exception:

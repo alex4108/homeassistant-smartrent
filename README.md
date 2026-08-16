@@ -91,21 +91,27 @@ values.
 ### Guest PIN dashboard card
 
 `www/smartrent-guest-pins-card.js` provides the
-`custom:smartrent-guest-pins-card` Lovelace card used on the Services
-Dashboard. It lists verified guest PINs and can create temporary or recurring
+`custom:smartrent-guest-pins-card` Lovelace card. It lists verified guest PINs
+and can create temporary or recurring
 codes, copy a generated PIN, and delete a code. The card calls the
 response-enabled SmartRent actions directly; it does not put PINs into entity
 state or dashboard configuration.
 
 Install the module under `/config/www/`, register it as a Lovelace module
-resource, and add the view from `www/services-dashboard-view.json`. Restrict
-the view to trusted Home Assistant users because viewing the card reveals
-active guest PINs in that browser session.
+resource, and add it to a dashboard with the SmartRent lock entity to manage:
 
-The integration manifest remains pinned to the current published
-`smartrent-py` release until the guest-access library changes are released. The
-dependency version must be updated to that known release before publishing this
-feature; no unreleased PyPI version is assumed here.
+```yaml
+type: custom:smartrent-guest-pins-card
+entity: lock.front_door
+title: Guest PINs
+```
+
+Restrict the card's view to trusted Home Assistant users because viewing the
+card reveals active guest PINs in that browser session.
+
+Until the related `smartrent-py` changes are released, the integration manifest
+points to the exact tested client commit. Replace that temporary Git dependency
+with the corresponding published release before releasing this integration.
 
 [license-shield]: https://img.shields.io/github/license/zacherythomas/homeassistant-smartrent.svg?style=for-the-badge
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge

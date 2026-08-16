@@ -78,14 +78,14 @@ if (context.window.customCards.filter((card) => card.type === "smartrent-guest-p
 
 const calls = [];
 const card = new Card();
-card.setConfig({ title: "Guest PINs" });
+card.setConfig({ title: "Guest PINs", entity: "lock.front_door" });
 card._hass = {
   async callWS(message) {
     calls.push(message);
     if (message.service === "get_guest_codes") {
       return {
         response: {
-          "lock.lock": {
+          "lock.front_door": {
             guest_codes: [],
             config: {
               max_permanent_codes: 0,
@@ -102,7 +102,7 @@ card._hass = {
     if (message.service === "create_guest_code") {
       return {
         response: {
-          "lock.lock": {
+          "lock.front_door": {
             verified: true,
             guest_code: { code_id: 123, pin: "123456" },
           },
@@ -117,7 +117,7 @@ if (!card.shadowRoot.innerHTML.includes("Create guest PIN")) throw new Error("cr
 if (!card.shadowRoot.innerHTML.includes("No guest PINs")) throw new Error("empty state missing");
 if (card.shadowRoot.innerHTML.includes('value="permanent"')) throw new Error("disabled permanent option shown");
 if (calls.length !== 1 || calls[0].return_response !== true) throw new Error("response service call invalid");
-if (calls[0].target?.entity_id !== "lock.lock") throw new Error("wrong lock target");
+if (calls[0].target?.entity_id !== "lock.front_door") throw new Error("wrong lock target");
 
 const firstName = card.shadowRoot.querySelector("#first-name");
 firstName.value = "Ada";

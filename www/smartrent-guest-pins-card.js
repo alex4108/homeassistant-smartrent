@@ -1,5 +1,4 @@
 const CARD_VERSION = "1.0.1";
-const ENTITY_ID = "lock.lock";
 
 class SmartRentGuestPinsCard extends HTMLElement {
   constructor() {
@@ -14,6 +13,9 @@ class SmartRentGuestPinsCard extends HTMLElement {
   }
 
   setConfig(config) {
+    if (!config?.entity || !String(config.entity).startsWith("lock.")) {
+      throw new Error("A SmartRent lock entity is required");
+    }
     this._config = { title: "Guest PINs", ...(config || {}) };
     this._render();
   }
@@ -54,15 +56,16 @@ class SmartRentGuestPinsCard extends HTMLElement {
 
   async _call(service, serviceData = {}) {
     if (!this._hass) throw new Error("Home Assistant is unavailable");
+    const entityId = this._config.entity;
     const result = await this._hass.callWS({
       type: "call_service",
       domain: "smartrent",
       service,
-      target: { entity_id: ENTITY_ID },
+      target: { entity_id: entityId },
       service_data: serviceData,
       return_response: true,
     });
-    const response = result?.response?.[ENTITY_ID];
+    const response = result?.response?.[entityId];
     if (!response || typeof response !== "object") {
       throw new Error("SmartRent returned no response for the lock");
     }
@@ -247,7 +250,7 @@ class SmartRentGuestPinsCard extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block} ha-card{padding:18px} h1{font-size:22px;margin:0} h2{font-size:17px;margin:18px 0 10px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.muted{color:var(--secondary-text-color);font-size:13px}.policy{margin:10px 0;padding:10px 12px;border-radius:10px;background:var(--secondary-background-color);font-size:13px}.error{margin:10px 0;padding:10px;border-radius:8px;background:rgba(244,67,54,.13);color:var(--error-color)}.created{padding:14px;border:2px solid var(--success-color,#4caf50);border-radius:12px;margin:12px 0}.created code,.pin-row code{font-size:24px;letter-spacing:.14em;font-weight:700}.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--secondary-text-color)}input,select{box-sizing:border-box;width:100%;padding:11px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color);font:inherit}.wide{grid-column:1/-1}.weekdays{display:flex;flex-wrap:wrap;gap:8px}.weekdays label{display:flex;flex-direction:row;align-items:center;padding:7px 9px;border:1px solid var(--divider-color);border-radius:8px}.weekdays input{width:auto}.actions{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}button{border:0;border-radius:9px;padding:10px 13px;background:var(--primary-color);color:var(--text-primary-color,#fff);font:inherit;font-weight:600;cursor:pointer}button.secondary{background:var(--secondary-background-color);color:var(--primary-text-color)}button.danger{background:var(--error-color);color:#fff}button:disabled{opacity:.5;cursor:wait}.code{border-top:1px solid var(--divider-color);padding:14px 0}.code-head,.pin-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.pin-row{justify-content:flex-start;margin:10px 0}.badge{padding:5px 8px;border-radius:999px;background:var(--secondary-background-color);font-size:12px}.empty{padding:18px;text-align:center;color:var(--secondary-text-color)}@media(max-width:600px){.form{grid-template-columns:1fr}.wide{grid-column:auto}.top{align-items:flex-start}.pin-row{flex-wrap:wrap}}
     </style><ha-card>
-      <div class="top"><div><h1>${this._escape(this._config.title)}</h1><div class="muted">SmartRent · ${ENTITY_ID}</div></div><button class="secondary" id="refresh" ${this._busy ? "disabled" : ""}>${this._busy ? "Working…" : "Refresh"}</button></div>
+      <div class="top"><div><h1>${this._escape(this._config.title)}</h1><div class="muted">SmartRent · ${this._escape(this._config.entity)}</div></div><button class="secondary" id="refresh" ${this._busy ? "disabled" : ""}>${this._busy ? "Working…" : "Refresh"}</button></div>
       <div class="policy">Temporary: ${this._escape(this._policy.max_temporary_codes ?? "—")} codes, ${this._escape(this._policy.max_temporary_hours ?? "—")} h max · Recurring: ${this._escape(this._policy.max_recurring_codes ?? "—")} codes, ${this._escape(this._policy.max_recurring_days ?? "—")} days/week, ${this._escape(this._policy.max_recurring_window_hours ?? "—")} h/day${permanentDisabled ? " · Permanent disabled" : ""}</div>
       ${this._error ? `<div class="error">${this._escape(this._error)}</div>` : ""}
       ${this._created ? `<div class="created"><strong>New verified PIN</strong><div class="pin-row"><code>${this._escape(this._created.pin)}</code><button class="secondary copy" data-pin="${this._escape(this._created.pin)}">Copy</button></div><div class="muted">Save it now; refreshing hides this notice.</div></div>` : ""}
@@ -283,7 +286,7 @@ if (!window.customCards.some((card) => card.type === "smartrent-guest-pins-card"
     type: "smartrent-guest-pins-card",
     name: "SmartRent Guest PINs",
     description: "Create, list, copy, and delete verified SmartRent guest PINs.",
-    preview: true,
+    preview: false,
   });
 }
 console.info(`SmartRent Guest PINs Card ${CARD_VERSION}`);

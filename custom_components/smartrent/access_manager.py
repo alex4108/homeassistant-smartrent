@@ -789,10 +789,12 @@ def _same_timestamp(left: Any, right: Any) -> bool:
     if left == right:
         return True
     try:
-        return datetime.fromisoformat(str(left).replace("Z", "+00:00")) == (
-            datetime.fromisoformat(str(right).replace("Z", "+00:00"))
-        )
-    except ValueError:
+        left_datetime = datetime.fromisoformat(str(left).replace("Z", "+00:00"))
+        right_datetime = datetime.fromisoformat(str(right).replace("Z", "+00:00"))
+        # SmartRent currently serializes guest schedules at whole-second
+        # precision even when HA supplied fractional seconds.
+        return abs((left_datetime - right_datetime).total_seconds()) < 1
+    except (TypeError, ValueError):
         return False
 
 

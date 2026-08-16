@@ -602,6 +602,32 @@ async def test_update_preserves_omitted_fields_routes_ids_and_returns_no_pin() -
 
 
 @pytest.mark.asyncio
+async def test_update_verifies_when_smartrent_truncates_fractional_seconds() -> None:
+    before = unit_access(
+        guest(
+            activation_type="temporary",
+            start_at="2026-08-16T08:00:00Z",
+            end_at="2026-08-16T10:00:00Z",
+        )
+    )
+    after = unit_access(
+        guest(
+            activation_type="temporary",
+            start_at="2026-08-16T08:00:00Z",
+            end_at="2026-08-16T11:00:00Z",
+        )
+    )
+    api = FakeAPI([before, after])
+
+    response = await manager(api).async_update_guest_code(
+        9,
+        end_at="2026-08-16T11:00:00.750000+00:00",
+    )
+
+    assert response["verified"] is True
+
+
+@pytest.mark.asyncio
 async def test_update_without_readable_contact_is_rejected_before_call() -> None:
     api = FakeAPI([unit_access(guest(email=None, phone=None))])
 

@@ -7,12 +7,26 @@ class Element {
   }
   attachShadow() {
     const elements = new Map();
+    let html = "";
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+      .map((value) => ({ value, checked: false, addEventListener() {} }));
     const root = {
-      innerHTML: "",
+      get innerHTML() {
+        return html;
+      },
+      set innerHTML(value) {
+        html = value;
+        elements.clear();
+        weekdays.forEach((input) => { input.checked = false; });
+      },
       querySelector(selector) {
         if (!elements.has(selector)) {
           elements.set(selector, {
-            value: "",
+            value: {
+              "#activation": "temporary",
+              "#recurring-start": "12:00",
+              "#recurring-end": "13:00",
+            }[selector] || "",
             hidden: false,
             dataset: {},
             addEventListener() {},
@@ -20,7 +34,9 @@ class Element {
         }
         return elements.get(selector);
       },
-      querySelectorAll() {
+      querySelectorAll(selector) {
+        if (selector === "input[name=weekday]") return weekdays;
+        if (selector === "input[name=weekday]:checked") return weekdays.filter((input) => input.checked);
         return [];
       },
     };
@@ -83,6 +99,16 @@ card._hass = {
         },
       };
     }
+    if (message.service === "create_guest_code") {
+      return {
+        response: {
+          "lock.lock": {
+            verified: true,
+            guest_code: { code_id: 123, pin: "123456" },
+          },
+        },
+      };
+    }
     throw new Error(`unexpected service ${message.service}`);
   },
 };
@@ -92,4 +118,30 @@ if (!card.shadowRoot.innerHTML.includes("No guest PINs")) throw new Error("empty
 if (card.shadowRoot.innerHTML.includes('value="permanent"')) throw new Error("disabled permanent option shown");
 if (calls.length !== 1 || calls[0].return_response !== true) throw new Error("response service call invalid");
 if (calls[0].target?.entity_id !== "lock.lock") throw new Error("wrong lock target");
-console.log(JSON.stringify({ registered: true, rendered: true, serviceCall: true, htmlBytes: card.shadowRoot.innerHTML.length }));
+
+const firstName = card.shadowRoot.querySelector("#first-name");
+firstName.value = "Ada";
+card.hass = { ...card._hass };
+if (card.shadowRoot.querySelector("#first-name") !== firstName || firstName.value !== "Ada") {
+  throw new Error("routine hass update rebuilt the form");
+}
+
+card._render();
+if (card.shadowRoot.querySelector("#first-name").value !== "Ada") {
+  throw new Error("explicit render discarded the form draft");
+}
+
+card.shadowRoot.querySelector("#last-name").value = "Lovelace";
+card.shadowRoot.querySelector("#email").value = "ada@example.test";
+card.shadowRoot.querySelector("#start-at").value = "2026-08-16T12:00";
+card.shadowRoot.querySelector("#end-at").value = "2026-08-16T13:00";
+await card._create();
+const createCall = calls.find((call) => call.service === "create_guest_code");
+if (!createCall || createCall.service_data.first_name !== "Ada" || createCall.service_data.last_name !== "Lovelace") {
+  throw new Error("create action discarded the form draft");
+}
+if (createCall.service_data.email !== "ada@example.test" || createCall.service_data.activation_type !== "temporary") {
+  throw new Error("create action sent incorrect form data");
+}
+
+console.log(JSON.stringify({ registered: true, rendered: true, serviceCall: true, formStable: true, createDraftPreserved: true, htmlBytes: card.shadowRoot.innerHTML.length }));

@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.0.1";
 const ENTITY_ID = "lock.lock";
 
 class SmartRentGuestPinsCard extends HTMLElement {
@@ -19,9 +19,12 @@ class SmartRentGuestPinsCard extends HTMLElement {
   }
 
   set hass(hass) {
+    const firstUpdate = !this._hass;
     this._hass = hass;
-    this._render();
-    if (!this._loaded && !this._busy) this._refresh();
+    if (firstUpdate) {
+      this._render();
+      if (!this._loaded && !this._busy) this._refresh();
+    }
   }
 
   getCardSize() {
@@ -175,6 +178,48 @@ class SmartRentGuestPinsCard extends HTMLElement {
     if (finish && !finish.value) finish.value = localValue(end);
   }
 
+  _captureFormState() {
+    const root = this.shadowRoot;
+    if (!root?.querySelector("#activation")) return null;
+    const value = (id) => root.querySelector(`#${id}`)?.value ?? "";
+    return {
+      activation: value("activation"),
+      firstName: value("first-name"),
+      lastName: value("last-name"),
+      email: value("email"),
+      phone: value("phone"),
+      startAt: value("start-at"),
+      endAt: value("end-at"),
+      recurringStart: value("recurring-start"),
+      recurringEnd: value("recurring-end"),
+      recurringDays: [...root.querySelectorAll("input[name=weekday]:checked")]
+        .map((input) => input.value),
+    };
+  }
+
+  _restoreFormState(state) {
+    if (!state) return;
+    const root = this.shadowRoot;
+    const setValue = (id, value) => {
+      const input = root.querySelector(`#${id}`);
+      if (input) input.value = value;
+    };
+    setValue("activation", state.activation);
+    setValue("first-name", state.firstName);
+    setValue("last-name", state.lastName);
+    setValue("email", state.email);
+    setValue("phone", state.phone);
+    setValue("start-at", state.startAt);
+    setValue("end-at", state.endAt);
+    setValue("recurring-start", state.recurringStart);
+    setValue("recurring-end", state.recurringEnd);
+    root.querySelectorAll("input[name=weekday]").forEach((input) => {
+      input.checked = state.recurringDays.includes(input.value);
+    });
+    root.querySelector("#temporary-fields").hidden = state.activation !== "temporary";
+    root.querySelector("#recurring-fields").hidden = state.activation !== "recurring";
+  }
+
   _codeCard(code) {
     const name = `${code.first_name || "Guest"} ${code.last_name || ""}`.trim();
     const schedule = code.activation_type === "temporary"
@@ -197,6 +242,7 @@ class SmartRentGuestPinsCard extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot || !this._config) return;
+    const formState = this._captureFormState();
     const permanentDisabled = Number(this._policy.max_permanent_codes) === 0;
     this.shadowRoot.innerHTML = `<style>
       :host{display:block} ha-card{padding:18px} h1{font-size:22px;margin:0} h2{font-size:17px;margin:18px 0 10px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.muted{color:var(--secondary-text-color);font-size:13px}.policy{margin:10px 0;padding:10px 12px;border-radius:10px;background:var(--secondary-background-color);font-size:13px}.error{margin:10px 0;padding:10px;border-radius:8px;background:rgba(244,67,54,.13);color:var(--error-color)}.created{padding:14px;border:2px solid var(--success-color,#4caf50);border-radius:12px;margin:12px 0}.created code,.pin-row code{font-size:24px;letter-spacing:.14em;font-weight:700}.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--secondary-text-color)}input,select{box-sizing:border-box;width:100%;padding:11px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color);font:inherit}.wide{grid-column:1/-1}.weekdays{display:flex;flex-wrap:wrap;gap:8px}.weekdays label{display:flex;flex-direction:row;align-items:center;padding:7px 9px;border:1px solid var(--divider-color);border-radius:8px}.weekdays input{width:auto}.actions{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}button{border:0;border-radius:9px;padding:10px 13px;background:var(--primary-color);color:var(--text-primary-color,#fff);font:inherit;font-weight:600;cursor:pointer}button.secondary{background:var(--secondary-background-color);color:var(--primary-text-color)}button.danger{background:var(--error-color);color:#fff}button:disabled{opacity:.5;cursor:wait}.code{border-top:1px solid var(--divider-color);padding:14px 0}.code-head,.pin-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.pin-row{justify-content:flex-start;margin:10px 0}.badge{padding:5px 8px;border-radius:999px;background:var(--secondary-background-color);font-size:12px}.empty{padding:18px;text-align:center;color:var(--secondary-text-color)}@media(max-width:600px){.form{grid-template-columns:1fr}.wide{grid-column:auto}.top{align-items:flex-start}.pin-row{flex-wrap:wrap}}
@@ -224,6 +270,7 @@ class SmartRentGuestPinsCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".copy").forEach((button) => button.addEventListener("click", () => this._copy(button.dataset.pin)));
     this.shadowRoot.querySelectorAll(".delete").forEach((button) => button.addEventListener("click", () => this._delete(Number(button.dataset.id), button.dataset.name)));
     this._setDefaults();
+    this._restoreFormState(formState);
   }
 }
 

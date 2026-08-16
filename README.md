@@ -88,6 +88,20 @@ values.
 > log access, avoid logging the response, and do not persist it longer than
 > necessary.
 
+### Guest PIN dashboard card
+
+`www/smartrent-guest-pins-card.js` provides the
+`custom:smartrent-guest-pins-card` Lovelace card used on the Services
+Dashboard. It lists verified guest PINs and can create temporary or recurring
+codes, copy a generated PIN, and delete a code. The card calls the
+response-enabled SmartRent actions directly; it does not put PINs into entity
+state or dashboard configuration.
+
+Install the module under `/config/www/`, register it as a Lovelace module
+resource, and add the view from `www/services-dashboard-view.json`. Restrict
+the view to trusted Home Assistant users because viewing the card reveals
+active guest PINs in that browser session.
+
 The integration manifest remains pinned to the current published
 `smartrent-py` release until the guest-access library changes are released. The
 dependency version must be updated to that known release before publishing this

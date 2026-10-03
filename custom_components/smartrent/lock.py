@@ -33,7 +33,28 @@ class SmartrentLock(LockEntity):
         self._access_manager = SmartRentAccessManager(client, lock._device_id)
 
         self.device.start_updater()
-        self.device.set_update_callback(self.async_schedule_update_ha_state)
+        self.device.set_update_callback(self._timing_update)
+
+    def _timing_update(self):
+        self.device.timing.record("callback_schedule")
+        self.async_schedule_update_ha_state()
+
+    def async_write_ha_state(self):
+        # Entry to HA write, not a claim about Recorder commit or bolt movement.
+        self.device.timing.record("ha_publish")
+        super().async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        return {"smartrent_timing_v1": self.device.timing.snapshot()}
+
+    async def _timed_command(self, locked):
+        try:
+            await self.device.async_set_locked(
+                locked, timing_context=getattr(self._context, "id", None)
+            )
+        finally:
+            self.async_schedule_update_ha_state()
 
     @property
     def should_poll(self):
@@ -63,10 +84,10 @@ class SmartrentLock(LockEntity):
         return "ALARM_TYPE_9" in str(self.device.get_notification())
 
     async def async_lock(self, **kwargs: Any):
-        await self.device.async_set_locked(True)
+        await self._timed_command(True)
 
     async def async_unlock(self, **kwargs: Any):
-        await self.device.async_set_locked(False)
+        await self._timed_command(False)
 
     async def _async_access_action(
         self, action: Callable[[], Awaitable[ServiceResponse]]

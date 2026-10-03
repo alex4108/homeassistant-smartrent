@@ -197,6 +197,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    from .ble_reception import install
+    entry.async_on_unload(install(hass))
     return True
 
 

@@ -4,7 +4,7 @@ import logging
 from typing import Any, Awaitable, Callable, Union
 
 from homeassistant.components.lock import LockEntity
-from homeassistant.core import ServiceResponse
+from homeassistant.core import ServiceResponse, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from smartrent import DoorLock
 
@@ -35,14 +35,16 @@ class SmartrentLock(LockEntity):
         self.device.start_updater()
         self.device.set_update_callback(self._timing_update)
 
+    @callback
     def _timing_update(self):
         self.device.timing.record("callback_schedule")
         self.async_schedule_update_ha_state()
 
-    def async_write_ha_state(self):
+    @callback
+    def _async_write_ha_state(self):
         # Entry to HA write, not a claim about Recorder commit or bolt movement.
         self.device.timing.record("ha_publish")
-        super().async_write_ha_state()
+        super()._async_write_ha_state()
 
     @property
     def extra_state_attributes(self):
